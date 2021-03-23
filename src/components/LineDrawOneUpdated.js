@@ -236,12 +236,12 @@ const LineDrawOne = () => {
     }
   };
 
-  const changeTool = () => {
-    if (tool === "draw") {
+  const changeTool = (key) => {
+    if (tool === "draw" && (key == "v" || key == "V")) {
       setTool("selection");
       dispatch(updateTempLineHistory(tempLine));
       dispatch(updateTempLine([]));
-    } else {
+    } else if(key == "p" || key == "P") {
       setTool("draw");
       /* updating temporary line with respect to current cursor position */
       if (tempLineHistory) {
@@ -273,9 +273,9 @@ const LineDrawOne = () => {
 
     const drawSelect = (event) => {
       if (event.key === "p" || event.key === "P") {
-        changeTool();
+        changeTool(event.key);
       } else if (event.key === "v" || event.key === "V") {
-        changeTool();
+        changeTool(event.key);
       }
     };
 
