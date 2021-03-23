@@ -5,3 +5,11 @@
   justify-content: space-around;
   flex-wrap: wrap;
 }
+
+.drawStage{
+  cursor: crosshair !important;
+}
+
+.selectionStage{
+  cursor: default !important;
+}
