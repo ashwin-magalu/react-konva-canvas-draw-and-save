@@ -306,7 +306,7 @@ const LineDrawOne = () => {
 
     // then put image on top of texts (so texts are not visible)
     pdf.addImage(
-      stageRef.current.toDataURL({ pixelRatio: 5 }), // increases quality by 5 times
+      stageRef.current.toDataURL({ pixelRatio: 2 }), // increases quality by 2 times
       0,
       0,
       window.innerWidth,
