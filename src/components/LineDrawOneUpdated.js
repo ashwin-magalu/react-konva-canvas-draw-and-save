@@ -1,37 +1,35 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Circle, Layer, Line, Shape, Stage } from "react-konva";
+import React, { useEffect, useState, useRef, Fragment } from "react";
+import { Circle, Layer, Line, Stage, Text } from "react-konva";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getNodes,
   getHistory,
   getLines,
-  getCurves,
   getTempLine,
   getTempLineHistory,
   updateTempLine,
   updateTempLineHistory,
   updateNodes,
   updateLines,
-  updateCurves,
   updateHistory,
   getCursorPoint,
   updateCursorPoint,
 } from "../features/shapesSlice";
 import jsPDF from "jspdf";
 
-const LineWithCurve = () => {
+const LineDrawOne = () => {
   const stageRef = useRef();
+  const layerRef = useRef()
+  const circleRef = useRef()
   const [tool, setTool] = useState("draw"); // setting default tool to be "draw"
+  const [isHovering, setIsHovering] = useState(true);
   const dispatch = useDispatch(); // creating dispatch variable
   const lines = useSelector(getLines); // creating lines array and assigning values from store
-  const curves = useSelector(getCurves); // creating curves array and assigning values from store
   const tempLine = useSelector(getTempLine); // creating temp lines array and assigning values from store
   const nodes = useSelector(getNodes); // creating nodes array and assigning values from store
   const history = useSelector(getHistory); // creating history array and assigning values from store
   const tempLineHistory = useSelector(getTempLineHistory); // creating temporary line history array and assigning values from store
   const cursorPoint = useSelector(getCursorPoint); // getting cursor point
-  const [lineDraw, setLineDraw] = useState(false);
-  const [curveDraw, setCurveDraw] = useState(false);
 
   const createNode = (e) => {
     // if mouse click is left button click
@@ -56,26 +54,18 @@ const LineWithCurve = () => {
           /* Dispatching new node array to store for updation */
           updateNodes(oldNodes)
         );
-        if (lineDraw) {
-          if (nodes.length > 0) {
-            dispatch(
-              /* Dispatching temporary line to lines array to store for updation */
-              updateLines([
-                ...lines,
-                {
-                  points: [
-                    tempLine?.points[0],
-                    tempLine?.points[1],
-                    tempLine?.points[2],
-                    tempLine?.points[3],
-                  ],
-                  id: tempLine?.id,
-                  name: "line",
-                },
-              ])
-            );
-          }
-          setLineDraw(false);
+        if (nodes.length > 0) {
+          dispatch(
+            /* Dispatching temporary line to lines array to store for updation */
+            updateLines([
+              ...lines,
+              {
+                points: tempLine?.points,
+                id: tempLine?.id,
+                name: "line",
+              },
+            ])
+          );
         }
         dispatch(
           /* clearing temporary line */
@@ -85,34 +75,6 @@ const LineWithCurve = () => {
     } else {
       /* won't create node when right and middle buttons are pressed */
       dispatch(updateNodes([...nodes]));
-    }
-  };
-
-  const createCurve = (e) => {
-    if (curveDraw) {
-      if (nodes.length > 0) {
-        dispatch(
-          /* Dispatching temporary line to lines array to store for updation */
-          updateCurves([
-            ...curves,
-            {
-              points: [
-                tempLine?.points[0],
-                tempLine?.points[1],
-                tempLine?.points[2],
-                tempLine?.points[3],
-                tempLine?.points[4],
-                tempLine?.points[5],
-                tempLine?.points[6],
-                tempLine?.points[7],
-              ],
-              id: tempLine?.id,
-              name: "curve",
-            },
-          ])
-        );
-      }
-      setLineDraw(false);
     }
   };
 
@@ -132,40 +94,6 @@ const LineWithCurve = () => {
           })
         );
       }
-      setLineDraw(true);
-    }
-    /* updating current cursor position, this can be used to get temporary line when tool is switched from view to draw */
-    dispatch(updateCursorPoint({ x: pos.x, y: pos.y }));
-  };
-
-  const createTemporaryLineForCurve = (e) => {
-    let name = "tempCurve";
-    let pos = e.target.getStage().getPointerPosition();
-    if (tool === "draw") {
-      /* loading last node's data */
-      if (nodes.length > 0) {
-        let lastNode = nodes[nodes.length - 1];
-        let controlPointOneY = (pos.y - lastNode[1]) * 0.45;
-        let controlPointTwoX = (pos.y - lastNode[0]) * 0.55;
-        /* dispatching temporary line's positions */
-        dispatch(
-          updateTempLine({
-            points: [
-              lastNode[0],
-              lastNode[1],
-              pos.x,
-              pos.y,
-              lastNode[0],
-              controlPointOneY,
-              controlPointTwoX,
-              pos.y,
-            ],
-            id: curves.length,
-            name,
-          })
-        );
-      }
-      setCurveDraw(true);
     }
     /* updating current cursor position, this can be used to get temporary line when tool is switched from view to draw */
     dispatch(updateCursorPoint({ x: pos.x, y: pos.y }));
@@ -173,8 +101,8 @@ const LineWithCurve = () => {
 
   const updateNode = (e) => {
     if (tool === "selection") {
-      let _x = e?.target?.attrs?.x; //getting present cursor position value and setting it onto x
-      let _y = e?.target?.attrs?.y; //getting present cursor position value and setting it onto y
+      let _x = e?.target?.attrs?.x; //getting present cursor position value and setting it onto _x
+      let _y = e?.target?.attrs?.y; //getting present cursor position value and setting it onto _y
       let _id = e?.target?.attrs?.id; //getting old node id using event
       let _name = e?.target?.attrs?.name; //getting old node name using event
 
@@ -205,7 +133,6 @@ const LineWithCurve = () => {
             name: "line",
           };
           dispatch(updateLines(newlines));
-          /* update the templine x1, y1 as well, but we haven't done that */
         } else {
           /* Changing middles node's position and line's connected to it */
           let newlines = lines.slice(0, lines.length);
@@ -232,7 +159,7 @@ const LineWithCurve = () => {
     dispatch(updateNodes([]));
     dispatch(updateHistory([]));
     dispatch(updateTempLineHistory([]));
-    setTool("draw");
+    setTool("draw")
   };
 
   const undo = () => {
@@ -247,7 +174,9 @@ const LineWithCurve = () => {
       let newLines = lines.slice(0, lines.length - 1);
       /* getting value of node which is going to be kept */
       let newNodes = nodes.slice(0, nodes.length - 1);
-      if (tempLine.name === "tempLine") {
+
+      if (tempLine.points) {
+       // console.log(tempLine.points)
         dispatch(
           updateTempLine({
             points: [
@@ -291,7 +220,7 @@ const LineWithCurve = () => {
     dispatch(updateLines(latestLines));
     dispatch(updateNodes(latestNodes));
 
-    if (tempLine.name === "tempLine") {
+    if (tempLine.points) {
       dispatch(
         updateTempLine({
           points: [
@@ -347,11 +276,10 @@ const LineWithCurve = () => {
         changeTool();
       } else if (event.key === "v" || event.key === "V") {
         changeTool();
-      } else if (event.key === "Escape") {
-        /* To remove temporary line and last point */
-        // dispatch(updateTempLine([]));
       }
     };
+
+    
 
     document.addEventListener("keydown", undoRedoFunction);
     document.addEventListener("keydown", drawSelect);
@@ -363,16 +291,18 @@ const LineWithCurve = () => {
 
   const savePdf = () => {
     let pdf = new jsPDF("l", "px", [window.innerWidth, window.innerHeight]);
-    pdf.setTextColor("#000000");
-    // first add texts
-    stageRef.current.find("Text").forEach((text) => {
-      const size = text.fontSize() / 0.75; // convert pixels to points
-      pdf.setFontSize(size);
-      pdf.text(text.text(), text.x(), text.y(), {
-        baseline: "top",
-        angle: -text.getAbsoluteRotation(),
-      });
-    });
+
+    /* converts text in canvas into black text with perfect pixels */
+    // pdf.setTextColor("#000000");
+    // first add texts, if there is any
+    // stageRef.current.find("Text").forEach((text) => {
+    //   const size = text.fontSize() / 0.75; // convert pixels to points
+    //   pdf.setFontSize(size);
+    //   pdf.text(text.text(), text.x(), text.y(), {
+    //     baseline: "top",
+    //     angle: -text.getAbsoluteRotation(),
+    //   });
+    // });
 
     // then put image on top of texts (so texts are not visible)
     pdf.addImage(
@@ -386,7 +316,7 @@ const LineWithCurve = () => {
     pdf.save(name);
   };
 
-  const downloadURI = (uri, name) => {
+  const downloadImageURI = (uri, name) => {
     var link = document.createElement("a");
     link.download = name;
     link.href = uri;
@@ -401,8 +331,23 @@ const LineWithCurve = () => {
     // console.log(uri);
     // we also can save uri as file
     let name = prompt("Enter file name");
-    downloadURI(uri, `${name}.png`);
+    downloadImageURI(uri, `${name}.png`);
   };
+
+  const elementStyle = (e) => {
+    if(tool === "selection"){
+      setIsHovering(!isHovering)
+     if(isHovering){
+        e.target.attrs.stroke = "blue"
+        e.target.attrs.fill = "blue"
+       //console.log(e.target);
+     }else{
+       e.target.attrs.stroke = "#adb5bd"
+       e.target.attrs.fill = "#adb5bd"
+     }
+    }
+  }
+  
 
   return (
     <div>
@@ -501,19 +446,17 @@ const LineWithCurve = () => {
           Save as Image
         </button>
       </div>
-      <Stage
+      <Stage className={tool === "draw" ? "drawStage": "selectionStage"}
         style={{ border: "2px dashed black" }}
-        width={window.innerWidth - 4}
-        height={window.innerHeight - 43}
-        onMouseDown={createNode}
+        width={window.innerWidth - 30}
+        height={window.innerHeight - 45}
+        onClick={createNode}
         onMouseMove={createTemporaryLine}
-        onDragMove={createTemporaryLineForCurve}
-        onDragEnd={createCurve}
         id="stage"
         ref={stageRef}
       >
         <Layer>
-          <Line
+        <Line
             key={Math.abs(Math.random() * 12345)}
             points={tempLine.points}
             //stroke="#df4b26"
@@ -523,6 +466,8 @@ const LineWithCurve = () => {
             lineCap="round"
             id={tempLine.id}
           />
+        </Layer>
+        <Layer>
           {lines.map((line) => (
             <>
               <Line
@@ -534,42 +479,33 @@ const LineWithCurve = () => {
                 tension={0.5}
                 lineCap="round"
                 id={line.id}
+                onMouseOver={e => elementStyle(e)}
+                onMouseOut={e => elementStyle(e)}
               />
             </>
           ))}
-          {curves.map((curve) => (
-            <Shape
-              key={Math.abs(Math.random() * 12345)}
-              stroke="#959595"
-              strokeWidth={1}
-              tension={0.5}
-              lineCap="round"
-              id={curve.id}
-              sceneFunc={(context, shape) => {
-                context.quadraticCurveTo(
-                  curve.points[0],
-                  curve.points[1],
-                  curve.points[2],
-                  curve.points[3]
-                );
-              }}
-            />
-          ))}
-          {nodes.map((node) => (
+        </Layer>
+        <Layer ref={layerRef}>
+        {nodes.map((node) => (
             <>
-              <Circle
+              <Circle className={"circle"}
                 key={node[6]}
                 x={node[0]}
                 y={node[1]}
-                radius={4}
+                radius={5}
                 stroke={"#adb5bd"}
                 fill={"#adb5bd"}
-                strokeWidth={2}
+                strokeWidth={0}
                 draggable
                 onDragMove={(e) => updateNode(e)}
                 id={node[6]}
                 name={node[7]}
+                ref={circleRef}
+                onMouseOver={e => elementStyle(e)}
+                onMouseOut={e => elementStyle(e)}
               />
+              <Text x={node[0] + 5}
+                y={node[1] + 5} text={node[6]} fontSize={15} fill="#adb5bd" key={Math.abs(Math.random() * 12345)} />
             </>
           ))}
         </Layer>
@@ -578,4 +514,4 @@ const LineWithCurve = () => {
   );
 };
 
-export default LineWithCurve;
+export default LineDrawOne;
